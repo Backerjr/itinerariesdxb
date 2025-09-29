@@ -1,25 +1,36 @@
+import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export default async function handler(req, res) {
-  const { name, email } = req.query;
-
-  if (!name || !email) {
-    return res.status(400).json({ error: "Name and email are required" });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
-  const guest = await prisma.guest.findFirst({
-    where: {
-      name: { equals: name, mode: "insensitive" },
-      email: { equals: email, mode: "insensitive" },
-    },
-    include: { bookings: true },
-  });
+  const { name, email } = req.body;
 
-  if (!guest) {
-    return res.status(404).json({ error: "Guest not found" });
+  if (!name && !email) {
+    return res.status(400).json({ message: "Please provide a name or email." });
   }
 
-  res.json({ guest });
+  try {
+    const bookings = await prisma.bookings.findMany({
+      where: {
+        OR: [
+          name ? { name: { contains: name, mode: "insensitive" } } : {},
+          email ? { email: { contains: email, mode: "insensitive" } } : {},
+        ],
+      },
+    });
+
+    if (bookings.length === 0) {
+      return res.status(404).json({ message: "No bookings found." });
+    }
+
+    return res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Lookup error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
 }
