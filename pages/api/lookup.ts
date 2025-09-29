@@ -5,32 +5,23 @@ const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { name, email } = req.body;
 
-  if (!name && !email) {
-    return res.status(400).json({ message: "Please provide a name or email." });
-  }
-
   try {
-    const bookings = await prisma.bookings.findMany({
-      where: {
-        OR: [
-          name ? { name: { contains: name, mode: "insensitive" } } : {},
-          email ? { email: { contains: email, mode: "insensitive" } } : {},
-        ],
-      },
+    const booking = await prisma.bookings.findFirst({
+      where: { name, email },
     });
 
-    if (bookings.length === 0) {
-      return res.status(404).json({ message: "No bookings found." });
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
     }
 
-    return res.status(200).json(bookings);
+    res.status(200).json(booking);
   } catch (error) {
-    console.error("Lookup error:", error);
-    return res.status(500).json({ message: "Server error" });
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 }
