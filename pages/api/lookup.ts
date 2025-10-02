@@ -8,7 +8,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { name, email } = req.body;
+  const { name, email } = req.body as { name?: string; email?: string };
+
+  if (!name || !email) {
+    return res.status(400).json({ message: "Name and email are required" });
+  }
 
   try {
     const booking = await prisma.bookings.findFirst({
@@ -19,7 +23,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    res.status(200).json(booking);
+    res.status(200).json({
+      ...booking,
+      date: booking.date.toISOString(),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
